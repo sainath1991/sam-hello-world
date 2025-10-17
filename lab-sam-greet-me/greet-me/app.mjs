@@ -1,24 +1,58 @@
-/**
- *
- * Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
- * @param {Object} event - API Gateway Lambda Proxy Input Format
- *
- * Context doc: https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html 
- * @param {Object} context
- *
- * Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
- * @returns {Object} object - API Gateway Lambda Proxy Output Format
- * 
- */
-
 export const lambdaHandler = async (event, context) => {
-    const response = {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: 'hello world',
-      })
-    };
+  let response;
 
-    return response;
-  };
-  
+  try {
+    if (event.httpMethod === "GET") {
+      const name = event.pathParameters?.name || "Guest";
+      const lang = event.queryStringParameters?.lang || "en";
+
+      const greetings = {
+        en: `Hello ${name}!`,
+        es: `¡Hola ${name}!`,
+        fr: `Bonjour ${name}!`,
+        hi: `Namaste ${name}!`,
+      };
+
+      response = {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: greetings[lang] || greetings.en }),
+      };
+    } else if (event.httpMethod === "POST") {
+      const body = JSON.parse(event.body || "{}");
+
+      if (!body.name || !body.lang) {
+        response = {
+          statusCode: 400,
+          body: JSON.stringify({ error: "Missing required fields: name, and/or lang" }),
+        };
+      } else {
+        response = {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `Welcome, ${body.name}. Your preferred language is ${body.lang}.`,
+          }),
+        };
+      }
+    } else {
+      response = {
+        statusCode: 405,
+        body: JSON.stringify({ error: "Method Not Allowed" }),
+      };
+    }
+  } catch (err) {
+    let errorMessage = "Unknown error occurred";
+
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    }
+
+    response = {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Internal Server Error", details: errorMessage }),
+    };
+  }
+
+  return response;
+};
